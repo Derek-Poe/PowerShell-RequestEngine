@@ -1,0 +1,18 @@
+name: Loopback lifecycle checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify historical reference and module
+        shell: ${{ matrix.shell }}
+        run: ./tests/Test-Provenance.ps1
+      - name: Exercise synthetic HTTP lifecycle
+        shell: ${{ matrix.shell }}
+        run: ./tests/Test-RequestEngine.ps1

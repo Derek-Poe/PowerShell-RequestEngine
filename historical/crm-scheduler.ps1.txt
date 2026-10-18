@@ -1,0 +1,77 @@
+# Historical excerpt: crmAPI_runspaceEnabled.ps1, original lines 662-736.
+# Inert reference: preserved defects are explained in PROVENANCE.md.
+$maxRun = 8
+$maxRun = [int]$maxRun
+$runspace = [RunSpaceFactory]::CreateRunspacePool(1,$maxRun)
+$runspace.Open()
+$psInst = New-Object -TypeName PSCustomObject
+$props = "1=$null"
+$availProps = "1=$true"
+2..$maxRun | % {
+  $props += "`n$_=$null"
+  $availProps += "`n$_=$true"
+}
+forEach($prop in @("Inst","Stat","Res")){
+  $psInst | Add-Member -MemberType NoteProperty -Name $prop -Value ($props | ConvertFrom-StringData)
+}
+$context = New-Object -TypeName PSCustomObject -Property @{CurrentCon=0}
+$context | Add-Member -MemberType NoteProperty -Name "ConAvail" -Value ($availProps | ConvertFrom-StringData)
+$context | Add-Member -MemberType NoteProperty -Name "Con" -Value ($props | ConvertFrom-StringData)
+function assignContext($conTemp){
+  $maxCap = $true
+  for($i = 1; $i -le $maxRun; $i++){
+    if($context.ConAvail.([String]$i)){
+      $context.CurrentCon = $i
+      $maxCap = $false
+      break
+    }
+  }
+  if($maxCap){
+    $context.CurrentCon = 0
+    $cleanData = cleanup -context $context -psInst $psInst
+    $context = $cleanData.context
+    $psInst = $cleanData.psInst
+    Start-Sleep -Milliseconds 500
+    assignContext
+  }
+  else{
+    $context.ConAvail.([String]$context.CurrentCon) = $false
+    $context.Con.($context.CurrentCon -as [String]) = $conTemp
+  }
+}
+function startRunspace($sblock,$runspace,$enc){
+  $psInst.Inst.([String]$context.CurrentCon) = [PowerShell]::Create()
+  $psInst.Inst.([String]$context.CurrentCon).RunspacePool = $runspace
+  #Param($con,$enc,$checkLogin,$getPackedDT,$getCurrentUser)
+  $null = $psInst.Inst.([String]$context.CurrentCon).AddScript($main).`
+          AddArgument($context.Con.([String]$context.CurrentCon)).AddArgument($enc).AddArgument($conn).`
+          AddArgument($checkLogin).AddArgument($getPackedDT).AddArgument($getCurrentUser)
+  $psInst.Stat.([String]$context.CurrentCon) = $psInst.Inst.([String]$context.CurrentCon).BeginInvoke()
+}
+function cleanup($context,$psInst){
+  1..$maxRun | % {
+    $i = $_
+    if(!($context.ConAvail.([String]$i))){
+      if($psInst.Stat.([String]$i).IsCompleted){
+        $psInst.Res.([String]$context.CurrentCon) = $psInst.Inst.([String]$context.CurrentCon).EndInvoke($psInst.Stat.([String]$context.CurrentCon))
+        $context.ConAvail.([String]$i) = $true
+      }
+    }
+  }
+  return New-Object -TypeName PSCustomObject -Property @{context=$context;psInst=$psInst}
+}
+
+$cleanCycle = 0
+do{
+  $conTemp = $listener.GetContext()
+  assignContext -conTemp $conTemp
+  startRunspace -sblock $sblock -runspace $runspace -enc $enc
+  if($cleanCycle -ge 2){
+    $cleanCycle = 0
+    $cleanData = cleanup -context $context -psInst $psInst
+    $context = $cleanData.context
+    $psInst = $cleanData.psInst
+  }
+  $cleanCycle++
+}
+while($true)

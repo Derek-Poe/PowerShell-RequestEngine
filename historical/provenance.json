@@ -1,0 +1,10 @@
+{
+    "originalFile":  "crmAPI_runspaceEnabled.ps1",
+    "originalLines":  [
+                          662,
+                          736
+                      ],
+    "referenceFile":  "historical/crm-scheduler.ps1.txt",
+    "referenceSha256":  "6b2ff50e8b42986f27c68860e692e320c8611a973ce1b899b92bf4112682285a",
+    "extraction":  "Scheduler-only excerpt; two neutral header comments and LF newlines. No operational handlers, endpoints, databases, secrets, or signature block included."
+}
