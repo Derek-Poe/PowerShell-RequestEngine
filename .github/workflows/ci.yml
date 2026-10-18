@@ -3,16 +3,27 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  test:
+  windows-powershell:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        shell: [powershell, pwsh]
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
       - name: Verify historical reference and module
-        shell: ${{ matrix.shell }}
         run: ./tests/Test-Provenance.ps1
       - name: Exercise synthetic HTTP lifecycle
-        shell: ${{ matrix.shell }}
+        run: ./tests/Test-RequestEngine.ps1
+  powershell-core:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify historical reference and module
+        run: ./tests/Test-Provenance.ps1
+      - name: Exercise synthetic HTTP lifecycle
         run: ./tests/Test-RequestEngine.ps1
